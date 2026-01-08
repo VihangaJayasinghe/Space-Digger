@@ -59,7 +59,7 @@ interface GameState {
 
 export const getUpgradeCost = (type: UpgradeType, currentLevel: number) => {
   const baseCosts = { speed: 50, range: 300, tank: 50, lights: 200 };
-  const multiplier = 2.5;
+  const multiplier = 1.75;
   return Math.floor(baseCosts[type] * Math.pow(multiplier, currentLevel - 1));
 };
 
