@@ -92,7 +92,7 @@ export default function HUD() {
              {/* PILOT */}
              <div className="flex flex-col items-end">
                 <div className="text-[9px] text-slate-500 uppercase tracking-[0.2em] font-bold">
-                   Command Link
+                   Pilot Name
                 </div>
                 <div className="text-sm font-bold text-slate-200 tracking-wider">
                    {displayUsername}
