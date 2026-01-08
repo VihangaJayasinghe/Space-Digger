@@ -64,7 +64,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     const upgrades = useGameStore.getState().upgrades;
     const speedLvl = upgrades.speed || 1;
     // Base 200, adds 50 speed per level
-    const currentSpeed = this.baseMoveSpeed + ((speedLvl - 1) * 50);
+    const currentSpeed = this.baseMoveSpeed;
 
     // 2. HORIZONTAL MOVEMENT
     if (this.keys.A.isDown) {
