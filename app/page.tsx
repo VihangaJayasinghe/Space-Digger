@@ -19,10 +19,8 @@ const Game = dynamic(() => import('./components/Game'), {
 
 export default function Home() {
   const { sellItems, isOnSurface } = useGameStore();
-  
-  // GAME STATE: 'MENU' or 'PLAYING'
   const [gameState, setGameState] = useState<'MENU' | 'PLAYING'>('MENU');
-
+  
   // UI States
   const [showShop, setShowShop] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
@@ -34,7 +32,6 @@ export default function Home() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-
       if (key === 'f' && isOnSurface) sellItems();
       if (key === 'e' && isOnSurface) setShowShop(prev => !prev);
       if (key === 'o') setShowStats(prev => !prev);
@@ -58,12 +55,10 @@ export default function Home() {
     if (!isOnSurface) setShowShop(false);
   }, [isOnSurface]);
 
-  // --- RENDER: MAIN MENU ---
   if (gameState === 'MENU') {
     return <MainMenu onStart={() => setGameState('PLAYING')} />;
   }
 
-  // --- RENDER: GAME ---
   return (
     <main className="relative h-screen w-screen bg-black overflow-hidden font-sans select-none animate-in fade-in duration-1000">
 
@@ -72,12 +67,7 @@ export default function Home() {
         <Game />
       </div>
 
-      {/* LAYER 1: HUD */}
-      <div className="absolute inset-0 z-10 pointer-events-none">
-        <HUD />
-      </div>
-
-      {/* LAYER 2: UI PANELS */}
+      {/* LAYER 2: UI PANELS (Inventory, Shop, Stats) - z-20 */}
       <div className="absolute inset-0 z-20 pointer-events-none p-6">
         
         {/* ACTION PROMPTS */}
@@ -96,13 +86,13 @@ export default function Home() {
           </div>
         </div>
 
-        {/* LEFT: CARGO */}
-        <div className="absolute top-32 left-6 w-64 pointer-events-auto transition-opacity duration-300 opacity-80 hover:opacity-100">
+        {/* LEFT: INVENTORY (Inventory is z-20) */}
+        <div className="absolute top-32 left-6 pointer-events-auto transition-opacity duration-300 opacity-80 hover:opacity-100">
            <Inventory />
            <div className="mt-4 text-[9px] text-slate-500 font-mono">[O] STATS & ONLINE</div>
         </div>
 
-        {/* CENTER: WORKSHOP */}
+        {/* CENTER: SHOP */}
         {showShop && isOnSurface && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
              <div className="bg-slate-950/95 backdrop-blur-xl border-2 border-cyan-500 rounded-xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative">
@@ -121,30 +111,24 @@ export default function Home() {
           </div>
         )}
 
-        {/* CENTER: STATS MENU & SCOREBOARD */}
+        {/* CENTER: STATS */}
         {showStats && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[600px] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 z-50">
              <div className="bg-slate-950/95 backdrop-blur-xl border-2 border-slate-600 rounded-xl p-6 shadow-2xl h-full flex flex-col relative">
-                
-                {/* Header */}
                 <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-2 flex-shrink-0">
                   <h2 className="text-xl font-black text-white italic tracking-tighter">
                     MISSION <span className="text-slate-500">STATISTICS</span>
                   </h2>
                   <div className="text-[10px] text-slate-400 font-mono">[O] TO CLOSE</div>
                 </div>
-
-                {/* Content Container: Flex Row */}
                 <div className="flex gap-4 h-full min-h-0">
                   <div className="flex-1 min-w-0">
                      <StatsMenu />
                   </div>
                   <div className="w-72 flex-shrink-0 flex flex-col gap-4 border-l border-slate-800 pl-4">
-                    
                      <Scoreboard />
                   </div>
                 </div>
-
              </div>
           </div>
         )}
@@ -162,6 +146,11 @@ export default function Home() {
           </div>
         </div>
 
+      </div>
+
+      {/* LAYER 3: HUD (Top Most - z-30) */}
+      <div className="absolute inset-0 z-30 pointer-events-none">
+        <HUD />
       </div>
 
       <div className="absolute bottom-6 right-6 z-10 pointer-events-none text-right opacity-40">

@@ -104,7 +104,14 @@ export const useGameStore = create<GameState>()(
         };
 
         const { error } = await supabase.from('profiles').update({ 
-            game_data: statsData, // Save to 'game_data' column
+            // 1. Save JSON Blob (For loading game)
+            game_data: statsData, 
+            
+            // 2. Save Columns (For Leaderboard) <-- THIS WAS MISSING
+            max_depth: state.stats.maxDepth,
+            total_earnings: state.stats.totalEarnings,
+            death_count: state.stats.deathCount,
+
             updated_at: new Date()
         }).eq('id', state.user.id);
 
@@ -140,7 +147,7 @@ export const useGameStore = create<GameState>()(
         const state = get();
         if (!state.user) return;
 
-        console.log("Attempting to load data from Cloud...");
+        console.log("FETCHING CLOUD PROFILE FOR:", state.user.id);
 
         const { data, error } = await supabase
           .from('profiles')
@@ -154,34 +161,32 @@ export const useGameStore = create<GameState>()(
         }
 
         if (data) {
-          console.log("Cloud Found Profile. Stats:", !!data.game_data, "Map:", !!data.world_dump);
+          // --- THE FIX: HARD RESET ---
+          // We don't merge (...state), we explicitly set every value
+          // from the database to ensure old player data is wiped.
+          
+          const cloudStats = data.game_data || {};
+          
+          set({
+            money: cloudStats.money ?? 0,
+            inventory: cloudStats.inventory ?? {},
+            // If upgrades are missing in cloud, we MUST force them to level 1
+            upgrades: cloudStats.upgrades ?? { speed: 1, range: 1, tank: 1, lights: 1 },
+            oxygen: cloudStats.oxygen ?? 100,
+            isOnSurface: cloudStats.isOnSurface ?? true,
+            stats: {
+              totalBlocksMined: cloudStats.stats?.totalBlocksMined ?? 0,
+              blocksMined: cloudStats.stats?.blocksMined ?? {},
+              totalEarnings: data.total_earnings ?? 0,
+              maxDepth: data.max_depth ?? 0,
+              deathCount: data.death_count ?? 0,
+            },
+            // Load Map
+            loadedWorldData: data.world_dump?.map ?? null,
+            loadedPlayerPos: data.world_dump?.player ?? null,
+          });
 
-          // A. Load Stats
-          if (data.game_data) {
-             set({
-               money: data.game_data.money ?? state.money,
-               inventory: data.game_data.inventory ?? {},
-               upgrades: data.game_data.upgrades ?? state.upgrades,
-               stats: {
-                 ...state.stats,
-                 ...data.game_data.stats,
-                 maxDepth: data.max_depth ?? state.stats.maxDepth,
-                 totalEarnings: data.total_earnings ?? state.stats.totalEarnings,
-                 deathCount: data.death_count ?? state.stats.deathCount,
-               }
-             });
-          }
-
-          // B. Load World
-          if (data.world_dump && data.world_dump.map && data.world_dump.map.length > 0) {
-             console.log("Map Data Successfully Loaded into Store");
-             set({
-               loadedWorldData: data.world_dump.map,
-               loadedPlayerPos: data.world_dump.player
-             });
-          } else {
-             console.warn("Cloud has no map data. Generating new world.");
-          }
+          console.log("SYNC COMPLETE: Levels reset to cloud state.");
         }
       },
 
