@@ -15,6 +15,7 @@ export class MainScene extends Scene {
 
   // Visuals
   private reticle!: Phaser.GameObjects.Rectangle;
+  private laserGraphics!: Phaser.GameObjects.Graphics; 
   
   // --- MINING STATE ---
   private isClicking = false;
@@ -33,6 +34,7 @@ export class MainScene extends Scene {
   // --- SHADOW / FOG OF WAR STATE ---
   private darkness!: Phaser.GameObjects.RenderTexture; 
   private lightBrush!: Phaser.GameObjects.Image;       
+  private platformLightBrush!: Phaser.GameObjects.Image; 
 
   // SAVE SYSTEM CONSTANTS
   private SAVE_KEY_WORLD = 'spacedigger-world';
@@ -58,7 +60,6 @@ export class MainScene extends Scene {
     // --- GENERATE LIGHT BRUSH TEXTURE (GRADIENT) ---
     const texture = this.textures.createCanvas('light-brush', 200, 200);
     
-    // FIX: Check if texture exists before using it
     if (texture) {
       const ctx = texture.getContext();
       const grd = ctx.createRadialGradient(100, 100, 0, 100, 100, 100);
@@ -90,6 +91,25 @@ export class MainScene extends Scene {
     }
     
     this.renderWorld();
+
+    // --- CREATE LAUNCHPAD (Unbreakable Platform) ---
+    const padCenter = Math.floor(WORLD_WIDTH / 2);
+    const padY = 12; 
+    const padWidth = 7; 
+
+    for (let i = 0; i < padWidth; i++) {
+      const x = padCenter - Math.floor(padWidth / 2) + i;
+      
+      const platformBlock = this.blocks.create(
+        x * TILE_SIZE + (TILE_SIZE / 2),
+        padY * TILE_SIZE + (TILE_SIZE / 2),
+        'base-block'
+      ) as Phaser.Physics.Arcade.Sprite;
+
+      platformBlock.setDisplaySize(TILE_SIZE, TILE_SIZE);
+      platformBlock.setTint(0x333333); 
+      platformBlock.refreshBody();
+    }
     
     // --- LOAD PLAYER LOGIC ---
     let spawnX = (WORLD_WIDTH * TILE_SIZE) / 2;
@@ -110,12 +130,25 @@ export class MainScene extends Scene {
     this.cameras.main.startFollow(this.player, true, 0.1, 0.1);
     this.cameras.main.setZoom(1.5);
 
-    // --- SETUP SHADOWS (FOG) ---
-    // 1. Create Brush Image (Hidden)
+    // --- VISUALS ---
+    
+    // 1. Laser Graphics
+    this.laserGraphics = this.add.graphics();
+    this.laserGraphics.setDepth(-1); 
+
+    // 2. Setup Shadows (Fog)
     this.lightBrush = this.add.image(0, 0, 'light-brush');
     this.lightBrush.setVisible(false);
 
-    // 2. Create Darkness Layer
+    // 3. Setup Platform Light Brush
+    this.platformLightBrush = this.add.image(0, 0, 'light-brush');
+    this.platformLightBrush.setVisible(false);
+    
+    // CHANGE: Scale for 10 Block Radius: (10 * 32) / 100
+    const platformLightScale = (10 * TILE_SIZE) / 100;
+    this.platformLightBrush.setScale(platformLightScale);
+
+
     const size = Math.max(this.scale.width, this.scale.height) * 2;
 
     this.darkness = this.add.renderTexture(spawnX, spawnY, size, size);
@@ -142,6 +175,9 @@ export class MainScene extends Scene {
     this.handleOxygen(delta);
     this.handleMining(delta);
     
+    // --- DRAW LASER ---
+    this.drawLaser();
+
     // --- UPDATE SHADOWS ---
     this.updateFog();
 
@@ -153,17 +189,60 @@ export class MainScene extends Scene {
     }
   }
 
+  // --- NEW LASER LOGIC ---
+  private drawLaser() {
+    this.laserGraphics.clear();
+
+    if (this.isClicking) {
+      const pointer = this.input.activePointer;
+      const { range } = this.getStats();
+
+      const startX = this.player.x;
+      const startY = this.player.y;
+
+      const angle = Phaser.Math.Angle.Between(startX, startY, pointer.worldX, pointer.worldY);
+      const distToMouse = Phaser.Math.Distance.Between(startX, startY, pointer.worldX, pointer.worldY);
+
+      const laserLength = Math.min(distToMouse, range);
+
+      const endX = startX + Math.cos(angle) * laserLength;
+      const endY = startY + Math.sin(angle) * laserLength;
+
+      const jitterWidth = Phaser.Math.FloatBetween(1.5, 4);
+
+      this.laserGraphics.lineStyle(jitterWidth, 0xff0000, 0.7); 
+      this.laserGraphics.beginPath();
+      this.laserGraphics.moveTo(startX, startY);
+      this.laserGraphics.lineTo(endX, endY);
+      this.laserGraphics.strokePath();
+    }
+  }
+
   // --- SHADOW LOGIC ---
   private updateFog() {
+    // 1. Move the canvas to follow the player
     this.darkness.setPosition(this.player.x, this.player.y);
     this.darkness.fill(0x000000);
 
+    // --- A. DRAW PLAYER LIGHT ---
     const { visibilityRadius } = this.getStats();
-    
     const scale = visibilityRadius / 100;
     this.lightBrush.setScale(scale);
 
+    // Player is always at the center of the darkness texture
     this.darkness.erase(this.lightBrush, this.darkness.width / 2, this.darkness.height / 2);
+
+    // --- B. DRAW PLATFORM LIGHT ---
+    // Calculate where the platform is relative to the player
+    const platformX = (WORLD_WIDTH * TILE_SIZE) / 2;
+    const platformY = 12 * TILE_SIZE; // Matches padY in create()
+
+    // Diff = WorldPos - PlayerPos
+    // We add (width/2) to convert that difference into Texture Coordinates
+    const relativeX = (platformX - this.player.x) + (this.darkness.width / 2);
+    const relativeY = (platformY - this.player.y) + (this.darkness.height / 2);
+
+    this.darkness.erase(this.platformLightBrush, relativeX, relativeY);
   }
 
   private saveGame() {
@@ -229,7 +308,7 @@ export class MainScene extends Scene {
     const maxOxygen = 100 + ((tankLvl - 1) * 50);
 
     // 4. VISIBILITY
-    const visibilityRadius = (3 * TILE_SIZE) + ((lightLvl - 1) * (0.5 * TILE_SIZE));
+    const visibilityRadius = (2 * TILE_SIZE) + ((lightLvl - 1) * (0.5 * TILE_SIZE));
 
     return { speed, range, maxOxygen, visibilityRadius };
   }
