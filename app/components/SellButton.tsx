@@ -1,33 +1,33 @@
 'use client'
 import React from 'react';
-// FIX: Point to ../game/store assuming both folders are inside /app/
 import { useGameStore } from '../game/store';
 
 export default function SellButton() {
-  // We can select multiple values at once to avoid typing 'state' multiple times
-  const { sellItems, money, isOnSurface, inventory } = useGameStore();
-  
-  const hasItems = Object.keys(inventory).length > 0;
+  const { sellItems, isOnSurface } = useGameStore();
 
   return (
-    <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 w-full flex flex-col gap-2">
-      <div className="flex justify-between items-center mb-2">
-        <span className="text-gray-400 text-xs font-bold uppercase tracking-wider">Credits</span>
-        <span className="text-green-400 font-mono text-xl">${money}</span>
+    <button
+      onClick={sellItems}
+      disabled={!isOnSurface}
+      className={`
+        relative w-full group overflow-hidden rounded-lg p-4 transition-all duration-200 border-2
+        ${isOnSurface 
+          ? 'bg-yellow-500/10 border-yellow-500 hover:bg-yellow-500/20 hover:shadow-[0_0_20px_rgba(234,179,8,0.4)]' 
+          : 'bg-slate-900 border-slate-800 opacity-50 cursor-not-allowed'}
+      `}
+    >
+      <div className="flex flex-col items-center">
+        <span className={`text-xs uppercase tracking-[0.3em] font-bold mb-1 ${isOnSurface ? 'text-yellow-400' : 'text-slate-500'}`}>
+          Trade Center
+        </span>
+        <span className={`text-lg font-black uppercase ${isOnSurface ? 'text-white' : 'text-slate-600'}`}>
+          {isOnSurface ? 'SELL ALL ORES' : 'DOCK TO SELL'}
+        </span>
       </div>
-
-      <button
-        onClick={sellItems}
-        disabled={!isOnSurface || !hasItems}
-        className={`
-          w-full py-3 rounded font-bold uppercase tracking-wide text-sm transition-all
-          ${isOnSurface && hasItems
-            ? "bg-green-600 hover:bg-green-500 text-white shadow-lg shadow-green-900/20" 
-            : "bg-gray-700 text-gray-500 cursor-not-allowed"}
-        `}
-      >
-        {isOnSurface ? "Sell Cargo" : "Return to Surface"}
-      </button>
-    </div>
+      
+      {/* Decorative Corner lines */}
+      <div className="absolute top-0 left-0 w-2 h-2 border-t-2 border-l-2 border-current opacity-50"></div>
+      <div className="absolute bottom-0 right-0 w-2 h-2 border-b-2 border-r-2 border-current opacity-50"></div>
+    </button>
   );
 }

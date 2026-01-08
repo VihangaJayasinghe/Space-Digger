@@ -1,12 +1,17 @@
-// src/game/Player.ts
-import { Scene, Physics } from 'phaser';
+import { Scene } from 'phaser';
 import { TILE_SIZE } from './constants';
 
-export class Player extends Physics.Arcade.Sprite {
-  // Variables to tweak how the character feels
-  private moveSpeed = 150;
-  private jetpackForce = -300;
-  private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
+export class Player extends Phaser.Physics.Arcade.Sprite {
+  // 1. CHANGE: Define WASD Keys instead of CursorKeys
+  private keys!: {
+    W: Phaser.Input.Keyboard.Key;
+    A: Phaser.Input.Keyboard.Key;
+    S: Phaser.Input.Keyboard.Key;
+    D: Phaser.Input.Keyboard.Key;
+  };
+
+  private moveSpeed = 200; 
+  private jetpackForce = -250; 
 
   constructor(scene: Scene, x: number, y: number) {
     // We create a simple white square as the player for now
@@ -25,28 +30,29 @@ export class Player extends Physics.Arcade.Sprite {
 
     // Input Keys
     if (scene.input.keyboard) {
-        this.cursors = scene.input.keyboard.createCursorKeys();
+      this.keys = scene.input.keyboard.addKeys('W,A,S,D') as any;
     }
   }
 
   update() {
-    if (!this.cursors) return;
+    if (!this.keys) return;
 
-    // 1. Horizontal Movement (Walk)
-    if (this.cursors.left.isDown) {
+    // 3. CHANGE: Use WASD Logic
+    
+    // Horizontal Movement (A = Left, D = Right)
+    if (this.keys.A.isDown) {
       this.setVelocityX(-this.moveSpeed);
-    } else if (this.cursors.right.isDown) {
+      this.setFlipX(true); // Visual: Face Left
+    } else if (this.keys.D.isDown) {
       this.setVelocityX(this.moveSpeed);
+      this.setFlipX(false); // Visual: Face Right
     } else {
-      // Friction / Stop immediately
       this.setVelocityX(0);
     }
 
-    // 2. Vertical Movement (Jetpack)
-    if (this.cursors.up.isDown) {
+    // Vertical Movement (W = Jetpack/Jump)
+    if (this.keys.W.isDown) {
       this.setVelocityY(this.jetpackForce);
     }
-    // Note: We don't need an 'else' here because Gravity (setGravityY) 
-    // automatically pulls us down when we aren't jetpacking.
   }
 }

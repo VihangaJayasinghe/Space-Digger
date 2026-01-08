@@ -1,52 +1,160 @@
 'use client'
+import React, { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Inventory from './components/Inventory';
 import HelpLegend from './components/HelpLegend';
 import HUD from './components/HUD';
-import SellButton from './components/SellButton';
 import UpgradeShop from './components/UpgradeShop';
-import ResetButton from './components/ResetButton'; // <--- 1. IMPORT
+import ResetButton from './components/ResetButton';
+import { useGameStore } from './game/store';
 
-const Game = dynamic(() => import('./components/Game'), { 
-  ssr: false, 
-  loading: () => <div className="text-white">Loading...</div>
+const Game = dynamic(() => import('./components/Game'), {
+  ssr: false,
+  loading: () => <div className="text-cyan-500 font-mono absolute inset-0 flex items-center justify-center bg-black z-50">INITIALIZING SYSTEMS...</div>
 });
 
 export default function Home() {
-  return (
-    <main className="flex h-screen w-screen bg-black overflow-hidden">
+  const { sellItems, isOnSurface } = useGameStore();
+  
+  // UI States
+  const [showShop, setShowShop] = useState(false);
+  const [showLegend, setShowLegend] = useState(false);
+
+  // --- KEYBOARD CONTROLS ---
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
+
+      // 1. [F] TO SELL (Only on Surface)
+      if (key === 'f') {
+        if (isOnSurface) {
+          sellItems();
+          // Optional: Add a sound or visual flash here
+        }
+      }
+
+      // 2. [E] TO TOGGLE WORKSHOP (Only on Surface)
+      if (key === 'e') {
+        if (isOnSurface) {
+          setShowShop(prev => !prev);
+        }
+      }
+
+      // 3. [I] TO SHOW LEGEND (Hold)
+      if (key === 'i') {
+        setShowLegend(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      const key = e.key.toLowerCase();
       
-      {/* LEFT: Game Area */}
-      <div className="flex-grow relative flex items-center justify-center bg-gray-950">
+      // Hide Legend on Release
+      if (key === 'i') {
+        setShowLegend(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, [isOnSurface, sellItems]);
+
+  // Auto-close shop if player leaves surface
+  useEffect(() => {
+    if (!isOnSurface) setShowShop(false);
+  }, [isOnSurface]);
+
+  return (
+    <main className="relative h-screen w-screen bg-black overflow-hidden font-sans select-none">
+
+      {/* LAYER 0: THE GAME (Full Center) */}
+      <div className="absolute inset-0 z-0 flex items-center justify-center bg-slate-950">
         <Game />
+      </div>
+
+      {/* LAYER 1: HUD OVERLAY (Always Visible) */}
+      <div className="absolute inset-0 z-10 pointer-events-none">
         <HUD />
       </div>
 
-      {/* RIGHT: Sidebar */}
-      <aside className="w-80 flex-shrink-0 bg-gray-900 border-l border-gray-800 p-4 flex flex-col gap-4 overflow-y-auto z-20">
+      {/* LAYER 2: INTERACTIVE & FLOATING UI */}
+      <div className="absolute inset-0 z-20 pointer-events-none p-6">
         
-        {/* Title & Reset */}
-        <div className="border-b border-gray-700 pb-4">
-          <ResetButton /> {/* <--- 2. PLACE IT HERE */}
-          
-          <h1 className="text-2xl font-bold text-white tracking-tight">
-            SPACE<span className="text-blue-500">DIGGER</span>
-          </h1>
-          <p className="text-gray-500 text-xs">Sector 7G - Depth: Surface</p>
+        {/* --- TOP CENTER: ACTION PROMPTS --- */}
+        {/* Only visible when docked */}
+        <div className={`
+          absolute top-24 left-1/2 -translate-x-1/2 flex gap-4 transition-all duration-300
+          ${isOnSurface ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}
+        `}>
+          <div className="bg-slate-900/80 backdrop-blur border border-yellow-500/50 text-yellow-400 px-4 py-2 rounded shadow-[0_0_15px_rgba(234,179,8,0.2)] flex items-center gap-2">
+            <span className="bg-yellow-500 text-black font-bold text-xs px-1.5 rounded">[F]</span>
+            <span className="text-xs font-bold tracking-widest uppercase">Sell Cargo</span>
+          </div>
+
+          <div className="bg-slate-900/80 backdrop-blur border border-cyan-500/50 text-cyan-400 px-4 py-2 rounded shadow-[0_0_15px_rgba(6,182,212,0.2)] flex items-center gap-2">
+            <span className="bg-cyan-500 text-black font-bold text-xs px-1.5 rounded">[E]</span>
+            <span className="text-xs font-bold tracking-widest uppercase">Workshop</span>
+          </div>
         </div>
 
-        <SellButton /> 
-        <UpgradeShop />
-        <Inventory />
-        
-        <div className="mt-auto">
-          <HelpLegend />
+
+        {/* --- LEFT: CARGO (Always visible but unobtrusive) --- */}
+        <div className="absolute top-32 left-6 w-64 pointer-events-auto transition-opacity duration-300 opacity-80 hover:opacity-100">
+           <Inventory />
         </div>
 
-        <div className="text-[10px] text-gray-600 text-center mt-4">
-          <p>ARROWS to Move • CLICK to Mine</p>
+
+        {/* --- CENTER: WORKSHOP MODAL (Conditional) --- */}
+        {showShop && isOnSurface && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
+             <div className="bg-slate-950/95 backdrop-blur-xl border-2 border-cyan-500 rounded-xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative">
+                
+                {/* Header */}
+                <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
+                  <h2 className="text-xl font-black text-white italic tracking-tighter">
+                    ENGINEERING <span className="text-cyan-500">BAY</span>
+                  </h2>
+                  <div className="text-[10px] text-cyan-400 font-mono">[E] TO CLOSE</div>
+                </div>
+
+                {/* The Shop Component */}
+                <UpgradeShop />
+
+                {/* Footer */}
+                <div className="mt-4 pt-2 border-t border-slate-800 flex justify-between items-center">
+                  <span className="text-[9px] text-slate-500 uppercase tracking-widest">Auth: Cmdr. Data</span>
+                  <ResetButton />
+                </div>
+             </div>
+          </div>
+        )}
+
+
+        {/* --- RIGHT: LEGEND OVERLAY (Hold 'I') --- */}
+        <div className={`
+          absolute top-32 right-6 w-72 pointer-events-auto transition-all duration-200
+          ${showLegend ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}
+        `}>
+          <div className="bg-slate-900/95 backdrop-blur border border-slate-600 rounded-lg p-4 shadow-2xl">
+            <div className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-2 border-b border-slate-700 pb-1">
+              Scanner Data [HOLD I]
+            </div>
+            <HelpLegend />
+          </div>
         </div>
-      </aside>
+
+      </div>
+
+      {/* BRANDING (Bottom Right) */}
+      <div className="absolute bottom-6 right-6 z-10 pointer-events-none text-right opacity-40">
+        <h1 className="text-2xl font-black text-white italic tracking-tighter">
+          SPACE<span className="text-cyan-500">DIGGER</span>
+        </h1>
+      </div>
 
     </main>
   );

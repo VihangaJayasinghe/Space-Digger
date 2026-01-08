@@ -1,45 +1,30 @@
-'use client'
 import React from 'react';
 import { BLOCK_Df } from '../game/constants';
 import { BlockId } from '../game/types';
 
 export default function HelpLegend() {
-  const blocks = Object.values(BLOCK_Df);
-
-  const toHexColor = (num: number) => {
-    return '#' + num.toString(16).padStart(6, '0');
-  };
+  // Only show blocks that have value (Ores)
+  const ores = Object.values(BLOCK_Df).filter(b => b.value && b.value > 0);
 
   return (
-    // FIX: Removed 'absolute top-4 right-4' and 'w-48'
-    // Added 'w-full' and 'bg-gray-800' to match the other sidebar items
-    <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 text-white w-full font-mono">
-      <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-3 border-b border-gray-600 pb-1">
-        Block Guide
+    <div className="text-slate-400">
+       <h3 className="text-[10px] font-bold uppercase tracking-widest mb-3 text-slate-600">
+         Material Database
       </h3>
       
-      <div className="space-y-2">
-        {blocks.map((block) => {
-          if (block.id === BlockId.EMPTY) return null;
-
-          return (
-            <div key={block.id} className="flex items-center gap-3">
-              <div 
-                className="w-4 h-4 rounded-sm border border-white/20 flex-shrink-0"
-                style={{ backgroundColor: toHexColor(block.color) }}
-              />
-              
-              <div className="flex flex-col">
-                <span className="text-xs font-bold leading-none">{block.name}</span>
-                <span className="text-[10px] text-gray-400">HP: {block.hardness}</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      
-      <div className="mt-4 text-[10px] text-gray-500 italic text-center">
-        Scroll down for more!
+      <div className="grid grid-cols-1 gap-1">
+        {ores.map((ore) => (
+          <div key={ore.id} className="flex items-center justify-between text-[10px] py-1 border-b border-slate-800/50 last:border-0">
+             <div className="flex items-center gap-2">
+                <div 
+                  className="w-2 h-2 rounded-sm shadow-sm"
+                  style={{ backgroundColor: `#${ore.color.toString(16).padStart(6, '0')}` }}
+                ></div>
+                <span className="uppercase font-medium text-slate-300">{ore.name}</span>
+             </div>
+             <span className="font-mono text-yellow-600/80">${ore.value}</span>
+          </div>
+        ))}
       </div>
     </div>
   );

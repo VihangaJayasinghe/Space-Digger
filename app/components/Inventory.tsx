@@ -1,52 +1,47 @@
 'use client'
 import React from 'react';
-// FIX: Path adjusted to ../game/store
 import { useGameStore } from '../game/store';
 import { BLOCK_Df } from '../game/constants';
 import { BlockId } from '../game/types';
 
 export default function Inventory() {
   const inventory = useGameStore((state) => state.inventory);
-
-  const toHex = (c: number) => '#' + c.toString(16).padStart(6, '0');
-
-  const items = Object.entries(inventory).map(([id, count]) => {
-    const blockId = Number(id) as BlockId;
-    return {
-      ...BLOCK_Df[blockId],
-      count: Number(count) // Ensure it is a Number
-    };
-  });
+  const itemIds = Object.keys(inventory) as unknown as BlockId[];
 
   return (
-    <div className="bg-gray-800 p-4 rounded-lg border border-gray-700 w-full">
-      <h3 className="text-gray-400 text-xs font-bold uppercase tracking-wider mb-3">
+    <div className="flex flex-col gap-2">
+      {/* Mini Header */}
+      <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 bg-black/40 p-1 rounded w-fit backdrop-blur-sm border border-slate-800/50">
+        <span className="w-1.5 h-1.5 bg-yellow-500 rounded-full animate-pulse"></span>
         Cargo Hold
-      </h3>
+      </div>
 
-      {items.length === 0 ? (
-        <div className="text-gray-600 text-sm italic text-center py-4">
-          Inventory Empty
-        </div>
+      {itemIds.length === 0 ? (
+        <div className="text-[10px] text-slate-600 font-mono pl-2 italic">No materials collected.</div>
       ) : (
-        <div className="grid grid-cols-4 gap-2">
-          {items.map((item) => (
-            <div 
-              key={item.id} 
-              className="relative group bg-gray-900 rounded border border-gray-700 aspect-square flex items-center justify-center"
-              title={item.name}
-            >
-              <div 
-                className="w-6 h-6 rounded-sm shadow-sm"
-                style={{ backgroundColor: toHex(item.color) }}
-              />
-              
-              <div className="absolute bottom-0 right-0 bg-black/80 text-white text-[10px] px-1 rounded-tl">
-                {/* Ensure we render a string or number */}
-                {item.count}
+        <div className="flex flex-col gap-1">
+          {itemIds.map((id) => {
+            const count = inventory[id];
+            const def = BLOCK_Df[id];
+            if (!count || !def) return null;
+
+            return (
+              <div key={id} className="bg-slate-900/80 border-l-2 border-slate-700 p-2 rounded-r flex items-center justify-between backdrop-blur-sm shadow-sm min-w-[200px]">
+                 
+                 <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: `#${def.color.toString(16).padStart(6, '0')}` }}></div>
+                    <span className="text-[10px] text-slate-300 font-bold uppercase">{def.name}</span>
+                 </div>
+                 
+                 <div className="flex items-center gap-3">
+                   <span className="text-xs text-white font-mono">x{count}</span>
+                   <span className="text-[9px] text-yellow-600 font-mono min-w-[30px] text-right">
+                     ${(def.value || 0) * count}
+                   </span>
+                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
