@@ -7,14 +7,13 @@ import { BlockId } from '../game/types';
 export default function StatsMenu() {
   const stats = useGameStore(state => state.stats);
 
-  // Filter out blocks we haven't mined yet
   const minedBlocksList = Object.entries(stats.blocksMined)
-    .sort(([, a], [, b]) => b - a); // Sort by quantity descending
+    .sort(([, a], [, b]) => b - a); 
 
   return (
     <div className="flex flex-col gap-4 h-full">
       
-      {/* GLOBAL STATS */}
+      {/* GLOBAL STATS GRID */}
       <div className="grid grid-cols-2 gap-4">
         
         <div className="bg-slate-900 border border-slate-700 p-4 rounded flex flex-col items-center justify-center">
@@ -28,6 +27,14 @@ export default function StatsMenu() {
            <div className="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-1">Deepest Point</div>
            <div className="text-xl text-cyan-500 font-mono font-bold">
              {stats.maxDepth}m
+           </div>
+        </div>
+
+        {/* NEW: DEATH COUNT */}
+        <div className="bg-slate-900 border border-red-900/30 p-4 rounded flex flex-col items-center justify-center col-span-2">
+           <div className="text-[10px] text-red-400/70 uppercase tracking-widest font-bold mb-1">Critical Failures (Deaths)</div>
+           <div className="text-2xl text-red-500 font-mono font-bold">
+             {stats.deathCount}
            </div>
         </div>
 

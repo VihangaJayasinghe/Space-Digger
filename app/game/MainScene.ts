@@ -72,6 +72,11 @@ export class MainScene extends Scene {
       
       texture.refresh();
     }
+
+    const flareGfx = this.make.graphics({ x: 0, y: 0 }, false);
+    flareGfx.fillStyle(0xffffff);
+    flareGfx.fillCircle(4, 4, 4); // Small 8x8 white circle
+    flareGfx.generateTexture('flare', 8, 8);
   }
 
   create() {
@@ -285,6 +290,7 @@ export class MainScene extends Scene {
     this.player.setPosition((WORLD_WIDTH * TILE_SIZE) / 2, 10 * TILE_SIZE);
     this.player.setVelocity(0, 0);
     useGameStore.getState().loseInventory(0.7);
+    useGameStore.getState().incrementDeath();
     this.oxygen = this.maxOxygen;
     this.isClicking = false;
     this.resetMiningProgress();
