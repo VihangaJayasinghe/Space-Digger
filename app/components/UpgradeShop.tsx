@@ -70,7 +70,8 @@ export default function UpgradeShop() {
         {renderUpgrade('tank', 'O2 Canister', 'Expands total oxygen capacity.', '🫁')}
         {renderUpgrade('lights', 'Floodlights', 'Increases visibility radius.', '💡')}
       </div>
-
+ 
+ 
       <div className="mt-2 p-2 bg-slate-900/30 rounded border border-slate-800/50">
          <div className="text-[8px] text-slate-600 uppercase tracking-widest text-center">
             Nano-Fabricator Status: <span className="text-green-500">Online</span>
