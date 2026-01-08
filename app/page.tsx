@@ -6,7 +6,10 @@ import HelpLegend from './components/HelpLegend';
 import HUD from './components/HUD';
 import UpgradeShop from './components/UpgradeShop';
 import ResetButton from './components/ResetButton';
-import StatsMenu from './components/StatsMenu'; // <--- IMPORT
+import StatsMenu from './components/StatsMenu';
+import Auth from './components/Auth';           
+import Scoreboard from './components/Scoreboard'; 
+import MainMenu from './components/MainMenu';    
 import { useGameStore } from './game/store';
 
 const Game = dynamic(() => import('./components/Game'), {
@@ -17,42 +20,30 @@ const Game = dynamic(() => import('./components/Game'), {
 export default function Home() {
   const { sellItems, isOnSurface } = useGameStore();
   
+  // GAME STATE: 'MENU' or 'PLAYING'
+  const [gameState, setGameState] = useState<'MENU' | 'PLAYING'>('MENU');
+
   // UI States
   const [showShop, setShowShop] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
-  const [showStats, setShowStats] = useState(false); // <--- STATE
+  const [showStats, setShowStats] = useState(false);
 
   // --- KEYBOARD CONTROLS ---
   useEffect(() => {
+    if (gameState !== 'PLAYING') return;
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
 
-      // [F] TO SELL
-      if (key === 'f' && isOnSurface) {
-        sellItems();
-      }
-
-      // [E] TO TOGGLE WORKSHOP
-      if (key === 'e' && isOnSurface) {
-        setShowShop(prev => !prev);
-      }
-      
-      // [O] TO TOGGLE STATS
-      if (key === 'o') {
-         setShowStats(prev => !prev);
-      }
-
-      // [I] TO SHOW LEGEND
-      if (key === 'i') {
-        setShowLegend(true);
-      }
+      if (key === 'f' && isOnSurface) sellItems();
+      if (key === 'e' && isOnSurface) setShowShop(prev => !prev);
+      if (key === 'o') setShowStats(prev => !prev);
+      if (key === 'i') setShowLegend(true);
     };
 
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-      if (key === 'i') {
-        setShowLegend(false);
-      }
+      if (key === 'i') setShowLegend(false);
     };
 
     window.addEventListener('keydown', handleKeyDown);
@@ -61,15 +52,20 @@ export default function Home() {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [isOnSurface, sellItems]);
+  }, [isOnSurface, sellItems, gameState]);
 
-  // Auto-close shop if player leaves surface
   useEffect(() => {
     if (!isOnSurface) setShowShop(false);
   }, [isOnSurface]);
 
+  // --- RENDER: MAIN MENU ---
+  if (gameState === 'MENU') {
+    return <MainMenu onStart={() => setGameState('PLAYING')} />;
+  }
+
+  // --- RENDER: GAME ---
   return (
-    <main className="relative h-screen w-screen bg-black overflow-hidden font-sans select-none">
+    <main className="relative h-screen w-screen bg-black overflow-hidden font-sans select-none animate-in fade-in duration-1000">
 
       {/* LAYER 0: THE GAME */}
       <div className="absolute inset-0 z-0 flex items-center justify-center bg-slate-950">
@@ -103,8 +99,7 @@ export default function Home() {
         {/* LEFT: CARGO */}
         <div className="absolute top-32 left-6 w-64 pointer-events-auto transition-opacity duration-300 opacity-80 hover:opacity-100">
            <Inventory />
-           {/* Hint for Stats */}
-           <div className="mt-4 text-[9px] text-slate-500 font-mono">[O] STATS MENU</div>
+           <div className="mt-4 text-[9px] text-slate-500 font-mono">[O] STATS & ONLINE</div>
         </div>
 
         {/* CENTER: WORKSHOP */}
@@ -126,9 +121,9 @@ export default function Home() {
           </div>
         )}
 
-        {/* CENTER: STATS MENU */}
+        {/* CENTER: STATS MENU & SCOREBOARD */}
         {showStats && (
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[600px] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 z-50">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[850px] h-[600px] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 z-50">
              <div className="bg-slate-950/95 backdrop-blur-xl border-2 border-slate-600 rounded-xl p-6 shadow-2xl h-full flex flex-col relative">
                 
                 {/* Header */}
@@ -139,9 +134,15 @@ export default function Home() {
                   <div className="text-[10px] text-slate-400 font-mono">[O] TO CLOSE</div>
                 </div>
 
-                {/* Content */}
-                <div className="flex-1 min-h-0">
-                   <StatsMenu />
+                {/* Content Container: Flex Row */}
+                <div className="flex gap-4 h-full min-h-0">
+                  <div className="flex-1 min-w-0">
+                     <StatsMenu />
+                  </div>
+                  <div className="w-72 flex-shrink-0 flex flex-col gap-4 border-l border-slate-800 pl-4">
+                    
+                     <Scoreboard />
+                  </div>
                 </div>
 
              </div>
@@ -163,7 +164,6 @@ export default function Home() {
 
       </div>
 
-      {/* BRANDING */}
       <div className="absolute bottom-6 right-6 z-10 pointer-events-none text-right opacity-40">
         <h1 className="text-2xl font-black text-white italic tracking-tighter">
           SPACE<span className="text-cyan-500">DIGGER</span>

@@ -1,96 +1,108 @@
 'use client'
 import React, { useEffect, useState } from 'react';
-import { useGameStore } from '../game/store'; // Adjust path if needed
+import { useGameStore } from '../game/store';
+import { supabase } from '../lib/supabase';
 
 export default function HUD() {
-  const { oxygen, maxOxygen, money, isOnSurface } = useGameStore();
+  const { 
+    money, 
+    oxygen, 
+    maxOxygen, 
+    stats, 
+    user, 
+    inventory 
+  } = useGameStore();
+
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Oxygen Bar Calculation
+  const oxygenPercent = Math.max(0, (oxygen / maxOxygen) * 100);
   
-  // Calculate Percentage for the bar
-  const oxygenPct = Math.max(0, (oxygen / maxOxygen) * 100);
-  const isLowOxygen = oxygenPct < 25; // Warning threshold
+  // Calculate total cargo count
+  const cargoCount = Object.values(inventory).reduce((a, b) => a + b, 0);
+
+  const handleLogout = async () => {
+    if (isSaving) return;
+    setIsSaving(true);
+    
+    console.log("Saving before logout...");
+    
+    // 1. Force a final save of Stats
+    await useGameStore.getState().saveStatsToCloud();
+    
+    // 2. Sign Out
+    await supabase.auth.signOut();
+    
+    // 3. Clear Local State & Cloud Buffer (CRITICAL FIX)
+    useGameStore.getState().setUser(null);
+    useGameStore.getState().clearLoadedData(); // <--- This prevents map clashes
+    
+    // 4. Clear Local Storage
+    localStorage.clear();
+    
+    // 5. Reload to Menu
+    window.location.reload();
+  };
+
+  // Safe Username Display
+  const displayUsername = user?.email 
+    ? user.email.replace('@spacedigger.local', '') 
+    : 'PILOT';
 
   return (
-    <div className="fixed inset-0 pointer-events-none p-6 flex flex-col justify-between z-50 select-none font-sans">
+    <div className="w-full h-full relative pointer-events-none p-4">
       
-      {/* --- TOP BAR --- */}
-      <div className="flex justify-between items-start">
-        
-        {/* LEFT: MONEY WIDGET */}
-        <div className="flex flex-col">
-          <div className="bg-slate-900/90 border-l-4 border-yellow-500 rounded-r-lg px-6 py-3 shadow-[0_0_15px_rgba(234,179,8,0.2)] backdrop-blur-md">
-             <div className="text-[10px] text-yellow-500/80 uppercase tracking-[0.2em] font-bold mb-1">
-               Credits
-             </div>
-             <div className="text-3xl font-mono text-white font-bold tracking-wider flex items-center gap-1 drop-shadow-md">
-               <span className="text-yellow-500">$</span>
-               {money.toLocaleString()}
-             </div>
-          </div>
-        </div>
-
-        {/* RIGHT: STATUS WIDGET */}
-        <div className="flex flex-col items-end">
-           <div className={`
-             bg-slate-900/90 border-r-4 rounded-l-lg px-6 py-3 backdrop-blur-md shadow-lg
-             ${isOnSurface ? 'border-green-500 shadow-green-500/20' : 'border-blue-500 shadow-blue-500/20'}
-           `}>
-             <div className={`text-[10px] uppercase tracking-[0.2em] font-bold mb-1 text-right ${isOnSurface ? 'text-green-400' : 'text-blue-400'}`}>
-               System Status
-             </div>
-             <div className="text-xl font-bold uppercase text-white tracking-widest text-right">
-               {isOnSurface ? 'DOCKED' : 'MINING OPS'}
-             </div>
-           </div>
-        </div>
+      {/* TOP LEFT: MONEY & DEPTH */}
+      <div className="absolute top-4 left-4 flex flex-col gap-2">
+         <div className="bg-slate-900/80 border border-yellow-500/50 p-2 rounded flex items-center gap-3 shadow-[0_0_10px_rgba(234,179,8,0.2)]">
+            <div className="text-yellow-500 font-bold text-lg">$</div>
+            <div className="text-white font-mono text-xl tracking-wider">{money.toLocaleString()}</div>
+         </div>
+         <div className="bg-slate-900/80 border border-cyan-500/50 p-2 rounded flex items-center gap-3">
+            <div className="text-cyan-500 text-xs font-bold uppercase">Depth</div>
+            <div className="text-white font-mono text-lg">{Math.floor(stats.maxDepth)}m</div>
+         </div>
       </div>
 
-      {/* --- BOTTOM BAR (OXYGEN) --- */}
-      <div className="flex flex-col items-center pb-8">
-        
-        {/* Critical Warning Label */}
-        {isLowOxygen && (
-           <div className="mb-2 text-red-500 font-bold animate-pulse uppercase tracking-[0.3em] text-sm bg-black/50 px-4 py-1 rounded">
-             ⚠ Critical Oxygen Levels ⚠
-           </div>
-        )}
-
-        {/* OXYGEN GAUGE CONTAINER */}
-        <div className={`
-            relative w-[600px] max-w-[90vw] bg-slate-950/80 border-2 rounded-xl p-1.5 
-            transition-all duration-300 shadow-xl backdrop-blur
-            ${isLowOxygen ? 'border-red-600 shadow-red-900/40 scale-105' : 'border-slate-700'}
-        `}>
-          
-          {/* Header Row inside bar */}
-          <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest mb-1 px-1">
-            <span className={isLowOxygen ? 'text-red-400' : 'text-cyan-400'}>
-              O2 Tank Pressure
-            </span>
-            <span className="text-slate-500 font-mono">
-              {Math.floor(oxygen)} / {maxOxygen} UNITS
-            </span>
-          </div>
-
-          {/* The Bar Track */}
-          <div className="h-5 bg-slate-900 rounded-lg overflow-hidden relative border border-slate-800">
-             
-             {/* Striped Background Pattern */}
-             <div className="absolute inset-0 opacity-20" 
-                  style={{backgroundImage: 'repeating-linear-gradient(45deg, #000, #000 5px, #222 5px, #222 10px)'}}>
-             </div>
-
-             {/* The Actual Fill Bar */}
-             <div 
-               className={`h-full transition-all duration-300 ease-out relative flex items-center justify-end
-                 ${isLowOxygen ? 'bg-gradient-to-r from-red-900 via-red-600 to-red-500' : 'bg-gradient-to-r from-cyan-900 via-cyan-600 to-cyan-400'}
-               `}
-               style={{ width: `${oxygenPct}%` }}
-             >
-                {/* White Glint at the tip */}
-                <div className="h-full w-[2px] bg-white/50 shadow-[0_0_10px_white]"></div>
-             </div>
-          </div>
+      {/* TOP RIGHT: PROFILE & LOGOUT */}
+      {user && (
+        <div className="absolute top-4 right-4 pointer-events-auto flex flex-col items-end gap-2">
+            <div className="bg-slate-900/90 border border-slate-600 px-3 py-1 rounded text-xs text-slate-300 font-mono uppercase">
+              CMD: {displayUsername}
+            </div>
+            
+            <button 
+              onClick={handleLogout}
+              disabled={isSaving}
+              className="bg-red-900/80 hover:bg-red-800 text-red-200 text-[10px] font-bold uppercase px-3 py-1 rounded border border-red-700 transition-colors"
+            >
+              {isSaving ? 'SAVING...' : 'SAVE & LOGOUT'}
+            </button>
         </div>
+      )}
+
+      {/* BOTTOM LEFT: OXYGEN */}
+      <div className="absolute bottom-4 left-4 w-64">
+         <div className="flex justify-between text-xs font-bold mb-1">
+            <span className="text-cyan-400">OXYGEN LEVELS</span>
+            <span className="text-white font-mono">{Math.floor(oxygen)}/{maxOxygen}</span>
+         </div>
+         <div className="w-full h-4 bg-slate-800 rounded-full border border-slate-600 overflow-hidden relative">
+            <div 
+              className={`h-full transition-all duration-300 ${oxygenPercent < 30 ? 'bg-red-500 animate-pulse' : 'bg-cyan-500'}`}
+              style={{ width: `${oxygenPercent}%` }}
+            />
+            {/* Gloss effect */}
+            <div className="absolute top-0 left-0 w-full h-1/2 bg-white/20 rounded-t-full" />
+         </div>
+      </div>
+
+      {/* BOTTOM RIGHT: CARGO */}
+      <div className="absolute bottom-4 right-4">
+         <div className="bg-slate-900/80 border border-slate-600 p-2 rounded flex flex-col items-end">
+            <span className="text-[10px] text-slate-400 uppercase font-bold">Cargo Hold</span>
+            <span className="text-xl text-white font-mono">{cargoCount} <span className="text-sm text-slate-500">items</span></span>
+         </div>
       </div>
 
     </div>

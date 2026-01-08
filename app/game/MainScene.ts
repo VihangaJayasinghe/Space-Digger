@@ -73,6 +73,7 @@ export class MainScene extends Scene {
       texture.refresh();
     }
 
+    // --- GENERATE FIRE TEXTURE (FLARE) ---
     const flareGfx = this.make.graphics({ x: 0, y: 0 }, false);
     flareGfx.fillStyle(0xffffff);
     flareGfx.fillCircle(4, 4, 4); // Small 8x8 white circle
@@ -85,14 +86,21 @@ export class MainScene extends Scene {
     this.blocks = this.physics.add.staticGroup();
 
     // --- LOAD WORLD LOGIC ---
-    const savedWorld = localStorage.getItem(this.SAVE_KEY_WORLD);
-    
-    if (savedWorld) {
-      console.log("Loading saved world...");
-      this.worldData = JSON.parse(savedWorld);
+    const store = useGameStore.getState();
+    const loadedWorld = store.loadedWorldData; 
+
+    if (loadedWorld) {
+      console.log("Using Cloud World Data");
+      this.worldData = loadedWorld;
     } else {
-      console.log("Generating new world...");
-      this.worldData = generateWorld();
+        const savedWorld = localStorage.getItem(this.SAVE_KEY_WORLD);
+        if (savedWorld) {
+          console.log("Loading local world...");
+          this.worldData = JSON.parse(savedWorld);
+        } else {
+          console.log("Generating new world...");
+          this.worldData = generateWorld();
+        }
     }
     
     this.renderWorld();
@@ -120,12 +128,24 @@ export class MainScene extends Scene {
     let spawnX = (WORLD_WIDTH * TILE_SIZE) / 2;
     let spawnY = 10 * TILE_SIZE;
 
-    const savedPlayer = localStorage.getItem(this.SAVE_KEY_PLAYER);
-    if (savedPlayer) {
-      const parsed = JSON.parse(savedPlayer);
-      spawnX = parsed.x;
-      spawnY = parsed.y;
+    const loadedPos = store.loadedPlayerPos;
+
+    if (loadedPos) {
+       console.log("Using Cloud Player Pos");
+       spawnX = loadedPos.x;
+       spawnY = loadedPos.y;
+    } else {
+       const savedPlayer = localStorage.getItem(this.SAVE_KEY_PLAYER);
+       if (savedPlayer) {
+         const parsed = JSON.parse(savedPlayer);
+         spawnX = parsed.x;
+         spawnY = parsed.y;
+       }
     }
+    
+    // IMPORTANT FIX: 
+    // We REMOVED 'store.clearLoadedData()' here.
+    // This ensures the data stays available if React re-renders the scene.
 
     this.player = new Player(this, spawnX, spawnY);
     this.physics.add.collider(this.player, this.blocks);
@@ -149,7 +169,7 @@ export class MainScene extends Scene {
     this.platformLightBrush = this.add.image(0, 0, 'light-brush');
     this.platformLightBrush.setVisible(false);
     
-    // CHANGE: Scale for 10 Block Radius: (10 * 32) / 100
+    // Scale for 10 Block Radius: (10 * 32) / 100
     const platformLightScale = (10 * TILE_SIZE) / 100;
     this.platformLightBrush.setScale(platformLightScale);
 
@@ -186,17 +206,28 @@ export class MainScene extends Scene {
     // --- UPDATE SHADOWS ---
     this.updateFog();
 
+    // --- UPDATE STATS ---
+    this.updateDepthStats();
+
     // --- AUTO SAVE TIMER ---
     this.autoSaveTimer += delta;
     if (this.autoSaveTimer > this.AUTOSAVE_INTERVAL) {
       this.saveGame();
       this.autoSaveTimer = 0;
     }
-
-    this.updateDepthStats();
   }
 
-  // --- NEW LASER LOGIC ---
+  private updateDepthStats() {
+    // 10 is the spawn Y block index. We subtract it so surface is 0.
+    const currentDepth = Math.floor(this.player.y / TILE_SIZE) - 10;
+    
+    const currentMax = useGameStore.getState().stats.maxDepth;
+    
+    if (currentDepth > currentMax) {
+      useGameStore.getState().updateMaxDepth(currentDepth);
+    }
+  }
+
   private drawLaser() {
     this.laserGraphics.clear();
 
@@ -225,7 +256,6 @@ export class MainScene extends Scene {
     }
   }
 
-  // --- SHADOW LOGIC ---
   private updateFog() {
     // 1. Move the canvas to follow the player
     this.darkness.setPosition(this.player.x, this.player.y);
@@ -253,10 +283,17 @@ export class MainScene extends Scene {
   }
 
   private saveGame() {
+    // 1. Save Local
     localStorage.setItem(this.SAVE_KEY_WORLD, JSON.stringify(this.worldData));
     const playerState = { x: this.player.x, y: this.player.y };
     localStorage.setItem(this.SAVE_KEY_PLAYER, JSON.stringify(playerState));
-    console.log("Game Saved!");
+    
+    // 2. Save Cloud (pass World and PlayerPos arguments)
+    // We split the save so we don't spam the heavy map data on every click
+    useGameStore.getState().saveWorldToCloud(this.worldData, playerState);
+    useGameStore.getState().saveStatsToCloud();
+    
+    console.log("Auto-Save Complete");
   }
 
   private handleOxygen(delta: number) {
@@ -290,7 +327,11 @@ export class MainScene extends Scene {
     this.player.setPosition((WORLD_WIDTH * TILE_SIZE) / 2, 10 * TILE_SIZE);
     this.player.setVelocity(0, 0);
     useGameStore.getState().loseInventory(0.7);
-    useGameStore.getState().incrementDeath();
+    useGameStore.getState().incrementDeath(); // <--- Increment Death Count
+    
+    // Trigger Save on Death to record stats
+    this.saveGame();
+
     this.oxygen = this.maxOxygen;
     this.isClicking = false;
     this.resetMiningProgress();
@@ -439,18 +480,6 @@ export class MainScene extends Scene {
       blockSprite.destroy();
       this.blockMap.delete(key);
       this.worldData[y][x] = BlockId.EMPTY;
-    }
-  }
-  private updateDepthStats() {
-    // 10 is the spawn Y block index. We subtract it so surface is 0.
-    const currentDepth = Math.floor(this.player.y / TILE_SIZE) - 10;
-    
-    // Only update if positive and greater than current max
-    // We access the store directly to avoid React overhead
-    const currentMax = useGameStore.getState().stats.maxDepth;
-    
-    if (currentDepth > currentMax) {
-      useGameStore.getState().updateMaxDepth(currentDepth);
     }
   }
 
