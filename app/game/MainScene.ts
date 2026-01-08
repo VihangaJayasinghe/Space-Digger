@@ -193,21 +193,23 @@ export class MainScene extends Scene {
   }
 
   private getStats() {
-    // Read directly from the store without hooks (getState)
     const upgrades = useGameStore.getState().upgrades;
     
-    // 1. SPEED CALCULATION
-    // Base: 800ms per hardness.
-    // Formula: Base / (1 + (Level * 0.5)) -> Higher level = Lower time (Faster)
-    const baseSpeed = 800;
-    const speed = baseSpeed / (1 + ((upgrades.speed - 1) * 0.5));
+    // SAFETY FIX: Default to 1 if undefined (Fixes NaN bug)
+    const speedLvl = upgrades.speed || 1;
+    const rangeLvl = upgrades.range || 1;
+    const tankLvl  = upgrades.tank  || 1;
 
-    // 2. RANGE CALCULATION
-    // Base: 2 Blocks (64px).
-    // Formula: Base + (Level * 1 Block) -> Higher level = Further reach
+    // 1. SPEED
+    const baseSpeed = 800;
+    const speed = baseSpeed / (1 + ((speedLvl - 1) * 0.5));
+
+    // 2. RANGE
     const baseRange = 2 * TILE_SIZE;
-    const range = baseRange + ((upgrades.range - 1) * TILE_SIZE);
-    const maxOxygen = 100 + ((upgrades.tank - 1) * 50);
+    const range = baseRange + ((rangeLvl - 1) * TILE_SIZE);
+    
+    // 3. OXYGEN
+    const maxOxygen = 100 + ((tankLvl - 1) * 50);
 
     return { speed, range, maxOxygen };
   }
