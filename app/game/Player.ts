@@ -1,5 +1,6 @@
 import { Scene } from 'phaser';
 import { TILE_SIZE } from './constants';
+import { useGameStore } from './store'; // <--- Import Store
 
 export class Player extends Phaser.Physics.Arcade.Sprite {
   // Define WASD Keys
@@ -10,10 +11,10 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     D: Phaser.Input.Keyboard.Key;
   };
 
-  private moveSpeed = 200; 
+  private baseMoveSpeed = 200; 
   private jetpackForce = -250; 
 
-  // 1. NEW: Add Emitter Property
+  // Particle Emitter
   private emitter!: Phaser.GameObjects.Particles.ParticleEmitter;
 
   constructor(scene: Scene, x: number, y: number) {
@@ -37,7 +38,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
       this.keys = scene.input.keyboard.addKeys('W,A,S,D') as any;
     }
 
-    // 2. NEW: Initialize Jetpack Particles
+    // Initialize Jetpack Particles
     // We use the 'flare' texture generated in MainScene
     this.emitter = scene.add.particles(0, 0, 'flare', {
       speed: 100,             // Speed of particles
@@ -59,25 +60,29 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
   update() {
     if (!this.keys) return;
 
-    // Horizontal Movement (A = Left, D = Right)
+    // 1. CALCULATE SPEED BASED ON UPGRADES
+    const upgrades = useGameStore.getState().upgrades;
+    const speedLvl = upgrades.speed || 1;
+    // Base 200, adds 50 speed per level
+    const currentSpeed = this.baseMoveSpeed + ((speedLvl - 1) * 50);
+
+    // 2. HORIZONTAL MOVEMENT
     if (this.keys.A.isDown) {
-      this.setVelocityX(-this.moveSpeed);
+      this.setVelocityX(-currentSpeed);
       this.setFlipX(true); 
     } else if (this.keys.D.isDown) {
-      this.setVelocityX(this.moveSpeed);
+      this.setVelocityX(currentSpeed);
       this.setFlipX(false); 
     } else {
       this.setVelocityX(0);
     }
 
-    // Vertical Movement (W = Jetpack/Jump)
+    // 3. VERTICAL MOVEMENT (JETPACK)
     if (this.keys.W.isDown) {
       this.setVelocityY(this.jetpackForce);
-      // 3. NEW: Turn ON fire when flying
-      this.emitter.start();
+      this.emitter.start(); // Fire ON
     } else {
-      // 4. NEW: Turn OFF fire when falling/idle
-      this.emitter.stop();
+      this.emitter.stop();  // Fire OFF
     }
   }
 }
