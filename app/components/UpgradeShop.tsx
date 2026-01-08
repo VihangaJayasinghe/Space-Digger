@@ -6,7 +6,9 @@ export default function UpgradeShop() {
   const { money, upgrades, buyUpgrade, isOnSurface } = useGameStore();
 
   const renderUpgrade = (type: UpgradeType, name: string, description: string) => {
-    const level = upgrades[type];
+    // Safety check for old saves
+    const level = upgrades[type] || 1; 
+    
     const cost = getUpgradeCost(type, level);
     const canAfford = money >= cost;
 
@@ -44,8 +46,10 @@ export default function UpgradeShop() {
       
       {renderUpgrade('speed', 'Laser Drill', 'Mines blocks faster.')}
       {renderUpgrade('range', 'Range Finder', 'Increases mining distance.')}
-      {/* NEW UPGRADE ADDED HERE */}
       {renderUpgrade('tank', 'O2 Tank', 'Increases oxygen capacity.')}
+      
+      {/* NEW UPGRADE */}
+      {renderUpgrade('lights', 'Floodlights', 'Increases visibility radius.')}
     </div>
   );
 }

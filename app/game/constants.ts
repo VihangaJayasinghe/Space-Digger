@@ -11,10 +11,10 @@ export const BLOCK_Df: Record<BlockId, BlockDefinition> = {
     id: BlockId.EMPTY, name: "Empty", color: 0x000000, hardness: 0 
   },
   [BlockId.DIRT]: { 
-    id: BlockId.DIRT, name: "Dirt", color: 0x8B4513, hardness: 1 
+    id: BlockId.DIRT, name: "Dirt", color: 0x8B4513, hardness: 1 ,value: 1
   },
   [BlockId.STONE]: { 
-    id: BlockId.STONE, name: "Stone", color: 0x808080, hardness: 3 
+    id: BlockId.STONE, name: "Stone", color: 0x808080, hardness: 3 ,value: 2
   },
   [BlockId.BEDROCK]: { 
     id: BlockId.BEDROCK, name: "Bedrock", color: 0x000000, hardness: 9999 
