@@ -7,9 +7,10 @@ export type UpgradeType = 'speed' | 'range' | 'tank' | 'lights';
 
 interface PlayerStats {
   totalBlocksMined: number;
-  blocksMined: Record<string, number>; // e.g. { "dirt": 50, "gold": 2 }
+  blocksMined: Record<string, number>;
   totalEarnings: number;
   maxDepth: number;
+  deathCount: number; // <--- 1. NEW STAT
 }
 
 interface GameState {
@@ -34,12 +35,12 @@ interface GameState {
   setIsOnSurface: (isSurface: boolean) => void;
   buyUpgrade: (type: UpgradeType) => void;
   updateMaxDepth: (depth: number) => void;
+  incrementDeath: () => void; // <--- 2. NEW ACTION
   resetSave: () => void;
 }
 
-// Upgrade Costs Logic
 export const getUpgradeCost = (type: UpgradeType, currentLevel: number) => {
-  const baseCosts = { speed: 50, range: 300, tank: 50, lights: 200 };
+  const baseCosts = { speed: 100, range: 300, tank: 150, lights: 200 };
   const multiplier = 2.5;
   return Math.floor(baseCosts[type] * Math.pow(multiplier, currentLevel - 1));
 };
@@ -60,13 +61,13 @@ export const useGameStore = create<GameState>()(
         blocksMined: {},
         totalEarnings: 0,
         maxDepth: 0,
+        deathCount: 0, // <--- 3. INITIALIZE
       },
 
       addToInventory: (blockId, amount) => set((state) => {
         const newInventory = { ...state.inventory };
         newInventory[blockId] = (newInventory[blockId] || 0) + amount;
 
-        // Update Stats
         const newStats = { ...state.stats };
         newStats.totalBlocksMined += amount;
         newStats.blocksMined[blockId] = (newStats.blocksMined[blockId] || 0) + amount;
@@ -121,12 +122,17 @@ export const useGameStore = create<GameState>()(
         return {};
       }),
 
+      // <--- 4. IMPLEMENT NEW ACTION
+      incrementDeath: () => set((state) => ({
+        stats: { ...state.stats, deathCount: state.stats.deathCount + 1 }
+      })),
+
       resetSave: () => {
         localStorage.removeItem('spacedigger-world');
         localStorage.removeItem('spacedigger-player');
         set({
           money: 0, inventory: {}, upgrades: { speed: 1, range: 1, tank: 1, lights: 1 },
-          stats: { totalBlocksMined: 0, blocksMined: {}, totalEarnings: 0, maxDepth: 0 }
+          stats: { totalBlocksMined: 0, blocksMined: {}, totalEarnings: 0, maxDepth: 0, deathCount: 0 }
         });
         window.location.reload();
       }
