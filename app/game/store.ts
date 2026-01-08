@@ -1,128 +1,136 @@
 import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { persist } from 'zustand/middleware';
 import { BlockId } from './types';
-import { BLOCK_Df } from './constants'; 
+import { BLOCK_Df } from './constants';
 
-type Inventory = Partial<Record<BlockId, number>>;
-
-// 1. ADD 'lights' to UpgradeType
 export type UpgradeType = 'speed' | 'range' | 'tank' | 'lights';
 
-interface GameState {
-  oxygen: number;
-  maxOxygen: number;
-  money: number;
-  isOnSurface: boolean;
-  inventory: Inventory;
-  
-  // 2. ADD 'lights' to upgrades state
-  upgrades: {
-    speed: number;
-    range: number;
-    tank: number;
-    lights: number;
-  };
-
-  setOxygen: (v: number) => void;
-  setIsOnSurface: (v: boolean) => void;
-  addToInventory: (id: BlockId, amount?: number) => void;
-  sellItems: () => void;
-  loseInventory: (percentage: number) => void;
-  resetSave: () => void;
-  buyUpgrade: (type: UpgradeType) => void;
+interface PlayerStats {
+  totalBlocksMined: number;
+  blocksMined: Record<string, number>; // e.g. { "dirt": 50, "gold": 2 }
+  totalEarnings: number;
+  maxDepth: number;
 }
 
-// 3. DEFINE COST for Lights
-export const getUpgradeCost = (type: UpgradeType, currentLevel: number) => {
-  let basePrice = 50; 
-  if (type === 'range') basePrice = 100;
-  if (type === 'tank') basePrice = 75;
-  if (type === 'lights') basePrice = 60; // Base cost for lights
+interface GameState {
+  // Resources
+  money: number;
+  inventory: Record<string, number>;
+  oxygen: number;
+  maxOxygen: number;
+  isOnSurface: boolean;
+  
+  // Upgrades
+  upgrades: Record<UpgradeType, number>;
+  
+  // Stats
+  stats: PlayerStats;
 
-  const safeLevel = (currentLevel && !isNaN(currentLevel)) ? currentLevel : 1;
-  return Math.floor(basePrice * Math.pow(1.5, safeLevel - 1));
+  // Actions
+  addToInventory: (blockId: BlockId, amount: number) => void;
+  sellItems: () => void;
+  loseInventory: (percentage: number) => void;
+  setOxygen: (amount: number) => void;
+  setIsOnSurface: (isSurface: boolean) => void;
+  buyUpgrade: (type: UpgradeType) => void;
+  updateMaxDepth: (depth: number) => void;
+  resetSave: () => void;
+}
+
+// Upgrade Costs Logic
+export const getUpgradeCost = (type: UpgradeType, currentLevel: number) => {
+  const baseCosts = { speed: 50, range: 300, tank: 50, lights: 200 };
+  const multiplier = 2.5;
+  return Math.floor(baseCosts[type] * Math.pow(multiplier, currentLevel - 1));
 };
 
 export const useGameStore = create<GameState>()(
   persist(
     (set, get) => ({
+      money: 0,
+      inventory: {},
       oxygen: 100,
       maxOxygen: 100,
-      money: 0,
       isOnSurface: true,
-      inventory: {},
       
-      // 4. INITIALIZE 'lights: 1'
       upgrades: { speed: 1, range: 1, tank: 1, lights: 1 },
 
-      // ... (Keep existing setters/actions exactly as they were) ...
-      setOxygen: (val) => set({ oxygen: val }),
-      setIsOnSurface: (val) => set({ isOnSurface: val }),
-      addToInventory: (id, amount = 1) => set((state) => {
-        const currentCount = state.inventory[id] || 0;
-        return { inventory: { ...state.inventory, [id]: currentCount + amount } };
-      }),
-      sellItems: () => set((state) => {
-        let totalValue = 0;
-        Object.entries(state.inventory).forEach(([idString, count]) => {
-          const id = Number(idString) as BlockId;
-          const def = BLOCK_Df[id];
-          if (def && def.value) totalValue += def.value * (count || 0);
-        });
-        return { money: state.money + totalValue, inventory: {} };
-      }),
-      loseInventory: (percentage) => set((state) => {
-        const newInventory: Inventory = {};
-        const keepFactor = 1 - percentage; 
-        Object.entries(state.inventory).forEach(([idString, count]) => {
-          const id = Number(idString) as BlockId;
-          const kept = Math.floor((count || 0) * keepFactor);
-          if (kept > 0) newInventory[id] = kept;
-        });
-        return { inventory: newInventory };
-      }),
-
-      resetSave: () => {
-        console.log("HARD RESET INITIATED");
-        set({
-            money: 0,
-            oxygen: 100,
-            inventory: {},
-            upgrades: { speed: 1, range: 1, tank: 1, lights: 1 }
-        });
-        localStorage.clear();
-        setTimeout(() => { window.location.reload(); }, 100);
+      stats: {
+        totalBlocksMined: 0,
+        blocksMined: {},
+        totalEarnings: 0,
+        maxDepth: 0,
       },
 
-      buyUpgrade: (type) => set((state) => {
-        const currentLevel = state.upgrades[type] || 1;
-        const cost = getUpgradeCost(type, currentLevel);
+      addToInventory: (blockId, amount) => set((state) => {
+        const newInventory = { ...state.inventory };
+        newInventory[blockId] = (newInventory[blockId] || 0) + amount;
 
+        // Update Stats
+        const newStats = { ...state.stats };
+        newStats.totalBlocksMined += amount;
+        newStats.blocksMined[blockId] = (newStats.blocksMined[blockId] || 0) + amount;
+
+        return { inventory: newInventory, stats: newStats };
+      }),
+
+      sellItems: () => set((state) => {
+        let revenue = 0;
+        Object.entries(state.inventory).forEach(([blockId, count]) => {
+          const value = BLOCK_Df[blockId as unknown as BlockId]?.value || 0;
+          revenue += value * count;
+        });
+
+        return {
+          money: state.money + revenue,
+          inventory: {},
+          stats: {
+            ...state.stats,
+            totalEarnings: state.stats.totalEarnings + revenue
+          }
+        };
+      }),
+
+      loseInventory: (percentage) => set((state) => {
+        const newInv: Record<string, number> = {};
+        Object.entries(state.inventory).forEach(([id, count]) => {
+          newInv[id] = Math.floor(count * (1 - percentage));
+        });
+        return { inventory: newInv };
+      }),
+
+      setOxygen: (val) => set({ oxygen: val }),
+      setIsOnSurface: (val) => set({ isOnSurface: val }),
+
+      buyUpgrade: (type) => set((state) => {
+        const level = state.upgrades[type] || 1;
+        const cost = getUpgradeCost(type, level);
         if (state.money >= cost) {
           return {
             money: state.money - cost,
-            upgrades: {
-              ...state.upgrades,
-              [type]: currentLevel + 1
-            }
+            upgrades: { ...state.upgrades, [type]: level + 1 }
           };
         }
         return {};
       }),
+
+      updateMaxDepth: (depth) => set((state) => {
+        if (depth > state.stats.maxDepth) {
+          return { stats: { ...state.stats, maxDepth: depth } };
+        }
+        return {};
+      }),
+
+      resetSave: () => {
+        localStorage.removeItem('spacedigger-world');
+        localStorage.removeItem('spacedigger-player');
+        set({
+          money: 0, inventory: {}, upgrades: { speed: 1, range: 1, tank: 1, lights: 1 },
+          stats: { totalBlocksMined: 0, blocksMined: {}, totalEarnings: 0, maxDepth: 0 }
+        });
+        window.location.reload();
+      }
     }),
-    {
-      name: 'spacedigger-storage',
-      storage: createJSONStorage(() => localStorage),
-      merge: (persistedState: any, currentState: GameState) => {
-        return {
-          ...currentState,
-          ...persistedState,
-          upgrades: {
-            ...currentState.upgrades, 
-            ...(persistedState.upgrades || {}),
-          },
-        };
-      },
-    }
+    { name: 'spacedigger-storage' }
   )
 );

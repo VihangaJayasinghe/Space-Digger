@@ -187,6 +187,8 @@ export class MainScene extends Scene {
       this.saveGame();
       this.autoSaveTimer = 0;
     }
+
+    this.updateDepthStats();
   }
 
   // --- NEW LASER LOGIC ---
@@ -431,6 +433,18 @@ export class MainScene extends Scene {
       blockSprite.destroy();
       this.blockMap.delete(key);
       this.worldData[y][x] = BlockId.EMPTY;
+    }
+  }
+  private updateDepthStats() {
+    // 10 is the spawn Y block index. We subtract it so surface is 0.
+    const currentDepth = Math.floor(this.player.y / TILE_SIZE) - 10;
+    
+    // Only update if positive and greater than current max
+    // We access the store directly to avoid React overhead
+    const currentMax = useGameStore.getState().stats.maxDepth;
+    
+    if (currentDepth > currentMax) {
+      useGameStore.getState().updateMaxDepth(currentDepth);
     }
   }
 

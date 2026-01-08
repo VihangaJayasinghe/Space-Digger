@@ -6,6 +6,7 @@ import HelpLegend from './components/HelpLegend';
 import HUD from './components/HUD';
 import UpgradeShop from './components/UpgradeShop';
 import ResetButton from './components/ResetButton';
+import StatsMenu from './components/StatsMenu'; // <--- IMPORT
 import { useGameStore } from './game/store';
 
 const Game = dynamic(() => import('./components/Game'), {
@@ -19,28 +20,29 @@ export default function Home() {
   // UI States
   const [showShop, setShowShop] = useState(false);
   const [showLegend, setShowLegend] = useState(false);
+  const [showStats, setShowStats] = useState(false); // <--- STATE
 
   // --- KEYBOARD CONTROLS ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
 
-      // 1. [F] TO SELL (Only on Surface)
-      if (key === 'f') {
-        if (isOnSurface) {
-          sellItems();
-          // Optional: Add a sound or visual flash here
-        }
+      // [F] TO SELL
+      if (key === 'f' && isOnSurface) {
+        sellItems();
       }
 
-      // 2. [E] TO TOGGLE WORKSHOP (Only on Surface)
-      if (key === 'e') {
-        if (isOnSurface) {
-          setShowShop(prev => !prev);
-        }
+      // [E] TO TOGGLE WORKSHOP
+      if (key === 'e' && isOnSurface) {
+        setShowShop(prev => !prev);
+      }
+      
+      // [O] TO TOGGLE STATS
+      if (key === 'o') {
+         setShowStats(prev => !prev);
       }
 
-      // 3. [I] TO SHOW LEGEND (Hold)
+      // [I] TO SHOW LEGEND
       if (key === 'i') {
         setShowLegend(true);
       }
@@ -48,8 +50,6 @@ export default function Home() {
 
     const handleKeyUp = (e: KeyboardEvent) => {
       const key = e.key.toLowerCase();
-      
-      // Hide Legend on Release
       if (key === 'i') {
         setShowLegend(false);
       }
@@ -71,21 +71,20 @@ export default function Home() {
   return (
     <main className="relative h-screen w-screen bg-black overflow-hidden font-sans select-none">
 
-      {/* LAYER 0: THE GAME (Full Center) */}
+      {/* LAYER 0: THE GAME */}
       <div className="absolute inset-0 z-0 flex items-center justify-center bg-slate-950">
         <Game />
       </div>
 
-      {/* LAYER 1: HUD OVERLAY (Always Visible) */}
+      {/* LAYER 1: HUD */}
       <div className="absolute inset-0 z-10 pointer-events-none">
         <HUD />
       </div>
 
-      {/* LAYER 2: INTERACTIVE & FLOATING UI */}
+      {/* LAYER 2: UI PANELS */}
       <div className="absolute inset-0 z-20 pointer-events-none p-6">
         
-        {/* --- TOP CENTER: ACTION PROMPTS --- */}
-        {/* Only visible when docked */}
+        {/* ACTION PROMPTS */}
         <div className={`
           absolute top-24 left-1/2 -translate-x-1/2 flex gap-4 transition-all duration-300
           ${isOnSurface ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4'}
@@ -101,30 +100,24 @@ export default function Home() {
           </div>
         </div>
 
-
-        {/* --- LEFT: CARGO (Always visible but unobtrusive) --- */}
+        {/* LEFT: CARGO */}
         <div className="absolute top-32 left-6 w-64 pointer-events-auto transition-opacity duration-300 opacity-80 hover:opacity-100">
            <Inventory />
+           {/* Hint for Stats */}
+           <div className="mt-4 text-[9px] text-slate-500 font-mono">[O] STATS MENU</div>
         </div>
 
-
-        {/* --- CENTER: WORKSHOP MODAL (Conditional) --- */}
+        {/* CENTER: WORKSHOP */}
         {showShop && isOnSurface && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 pointer-events-auto animate-in fade-in zoom-in-95 duration-200">
              <div className="bg-slate-950/95 backdrop-blur-xl border-2 border-cyan-500 rounded-xl p-6 shadow-[0_0_50px_rgba(6,182,212,0.3)] relative">
-                
-                {/* Header */}
                 <div className="flex justify-between items-center mb-4 border-b border-slate-800 pb-2">
                   <h2 className="text-xl font-black text-white italic tracking-tighter">
                     ENGINEERING <span className="text-cyan-500">BAY</span>
                   </h2>
                   <div className="text-[10px] text-cyan-400 font-mono">[E] TO CLOSE</div>
                 </div>
-
-                {/* The Shop Component */}
                 <UpgradeShop />
-
-                {/* Footer */}
                 <div className="mt-4 pt-2 border-t border-slate-800 flex justify-between items-center">
                   <span className="text-[9px] text-slate-500 uppercase tracking-widest">Auth: Cmdr. Data</span>
                   <ResetButton />
@@ -133,8 +126,29 @@ export default function Home() {
           </div>
         )}
 
+        {/* CENTER: STATS MENU */}
+        {showStats && (
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[600px] pointer-events-auto animate-in fade-in zoom-in-95 duration-200 z-50">
+             <div className="bg-slate-950/95 backdrop-blur-xl border-2 border-slate-600 rounded-xl p-6 shadow-2xl h-full flex flex-col relative">
+                
+                {/* Header */}
+                <div className="flex justify-between items-center mb-6 border-b border-slate-800 pb-2 flex-shrink-0">
+                  <h2 className="text-xl font-black text-white italic tracking-tighter">
+                    MISSION <span className="text-slate-500">STATISTICS</span>
+                  </h2>
+                  <div className="text-[10px] text-slate-400 font-mono">[O] TO CLOSE</div>
+                </div>
 
-        {/* --- RIGHT: LEGEND OVERLAY (Hold 'I') --- */}
+                {/* Content */}
+                <div className="flex-1 min-h-0">
+                   <StatsMenu />
+                </div>
+
+             </div>
+          </div>
+        )}
+
+        {/* RIGHT: LEGEND */}
         <div className={`
           absolute top-32 right-6 w-72 pointer-events-auto transition-all duration-200
           ${showLegend ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10'}
@@ -149,7 +163,7 @@ export default function Home() {
 
       </div>
 
-      {/* BRANDING (Bottom Right) */}
+      {/* BRANDING */}
       <div className="absolute bottom-6 right-6 z-10 pointer-events-none text-right opacity-40">
         <h1 className="text-2xl font-black text-white italic tracking-tighter">
           SPACE<span className="text-cyan-500">DIGGER</span>
