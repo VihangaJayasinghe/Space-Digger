@@ -11,7 +11,7 @@ export class Player extends Phaser.Physics.Arcade.Sprite {
     D: Phaser.Input.Keyboard.Key;
   };
 
-  private baseMoveSpeed = 50; 
+  private baseMoveSpeed = 80; 
   private jetpackForce = -150; 
 
   // Particle Emitter
